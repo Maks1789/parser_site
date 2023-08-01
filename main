@@ -1,0 +1,115 @@
+import time
+import requests
+from bs4 import BeautifulSoup
+import openpyxl
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
+
+options = uc.ChromeOptions()
+
+options.add_argument(r'--user-data-dir=/home/maks/.config/google-chrome/Default/Parser')
+options.add_argument('--profile-directory=Parser')
+#options.add_argument('--headless')
+driver = uc.Chrome(options=options)
+
+
+
+def get_element_value_tg(xpath):
+    element = driver.find_element(By.XPATH, xpath)
+    print(element.text)
+    return element.text
+
+def return_row_data(xpath):
+    try:
+        span_element = driver.find_element(By.XPATH, xpath)
+        value = span_element.text
+        print(value)
+        return value
+    except Exception as e:
+        print(e)
+def check_url(url):
+    return url.startswith("/vnz/guide/")
+
+
+def parse_news_titles(url):
+    links_of_univer = []
+
+    # Create a new Excel workbook or load an existing one/must be exist
+
+    workbook = openpyxl.load_workbook("hello.xlsx")
+    sheet = workbook.active
+
+    try:
+        # Отримуємо TML-код веб-сторінки
+        response = requests.get(url)
+        response.raise_for_status()
+
+        # Створюємо об BeautifulSoup для парсинга HTML
+        soup = BeautifulSoup(response.content, 'html.parser')
+        #print(soup.prettify())
+
+
+        # шукаємо всі ("/vnz/guide/") на початку лінку
+        for link in soup.find_all('a'):
+            #print(link.get('href'))
+            links = link.get('href')
+            #print(links)
+            if check_url(links) == True:
+                links_of_univer.append(links)
+
+        # Всі посилання
+        print(links_of_univer)
+
+
+
+
+
+    except requests.exceptions.RequestException as e:
+        print(f"Виникла помилка: {e}")
+
+    try:
+        with open("hello.txt", "a") as file:
+            for ur in links_of_univer:
+                driver.get(f"https://osvita.ua/{ur}")
+                time.sleep(2)
+                un_title_path = "//h1[contains(@class, 'heading')]"
+                un_post_path = "//td[contains(@class, 'vmiddle')]"
+                try:
+                    title = return_row_data(un_title_path)
+                    un_post = return_row_data(un_post_path)
+                    # збереження в xslx
+                    sheet.append([title, un_post])
+                except Exception as e:
+                    print(e)
+                """  
+                Використання bs4 та збереження у файл txt:
+                response = requests.get(f"https://osvita.ua/{ur}")
+                soup = BeautifulSoup(response.content, 'html.parser')
+                # print(soup.prettify())
+
+                for title in soup.find_all("h1", class_="heading"):
+                    for link in soup.find_all("td", class_="vmiddle"):
+                        #print(link.get('href="mailto:'))
+                        #print(link)
+                        un_title = title.text
+                        un_post = link.text
+                        print(get_element_value_tg("/html/body/div[5]/div[6]/div[3]/article[1]/table/tbody/tr/td[2]/a[3]"))
+
+                        file.write(f"{un_title}, {un_post}")
+
+                        #print(un_title, un_post)
+                    """
+    except Exception as e:
+        pass
+
+    # Сохраняем книгу
+    workbook.save("hello.xlsx")
+    print("Дані було успішно записано до файлу hello.xlsx.")
+
+url = "https://osvita.ua/vnz/guide/search-17-0-0-34-200.html"  # Замените на URL нужной вам страницы с новостями
+parse_news_titles(url)
+
+all_url = ["https://osvita.ua/vnz/guide/search-17-0-0-34-0.html", "https://osvita.ua/vnz/guide/search-17-0-0-34-25.html", "https://osvita.ua/vnz/guide/search-17-0-0-34-50.html"
+           "https://osvita.ua/vnz/guide/search-17-0-0-34-75.html", "https://osvita.ua/vnz/guide/search-17-0-0-34-100.html" ,
+           "https://osvita.ua/vnz/guide/search-17-0-0-34-125.html" , "https://osvita.ua/vnz/guide/search-17-0-0-34-150.html",
+           "https://osvita.ua/vnz/guide/search-17-0-0-34-175.html", "https://osvita.ua/vnz/guide/search-17-0-0-34-200.html"  ]
